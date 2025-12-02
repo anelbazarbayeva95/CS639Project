@@ -62,7 +62,7 @@ class CameraController(private val activity: ComponentActivity) {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    //TODO: Connect Barcode scanner with
+    //TODO: Connect Barcode scanner with the Camera
     fun startCamera(previewView: PreviewView, lifecycleOwner: LifecycleOwner) {
 
         previewView.visibility = PreviewView.VISIBLE
