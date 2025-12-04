@@ -11,15 +11,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import com.example.nutritiontracker.camera.CameraController
 import com.example.nutritiontracker.camera.CameraScreen
-import com.example.nutritiontracker.ui.addfood.AddFoodScreen
 import com.example.nutritiontracker.ui.goals.GoalsScreen
+import com.example.nutritiontracker.ui.home.AddFoodSection
 import com.example.nutritiontracker.ui.home.HomeScreen
 import com.example.nutritiontracker.ui.settings.SettingsScreen
 
 @Composable
-fun NutritionApp(cameraController: CameraController) {
+fun NutritionApp(cameraController: CameraController) {   // still passed from MainActivity
     var selectedScreen by remember { mutableStateOf<Screen>(Screen.Home) }
 
     Scaffold(
@@ -44,13 +45,23 @@ fun NutritionApp(cameraController: CameraController) {
         when (selectedScreen) {
             Screen.Home -> HomeScreen(
                 onSettingsClick = { selectedScreen = Screen.Settings },
+                modifier = Modifier,
                 cameraController = cameraController,
-                onScanClick = {selectedScreen = Screen.Camera}
+                onScanClick = { selectedScreen = Screen.Camera }
             )
-            Screen.AddFood -> AddFoodScreen()
-            Screen.Goals -> GoalsScreen()
-            Screen.Settings -> SettingsScreen()
+            
+            Screen.AddFood -> AddFoodSection(
+                cameraController = TODO(),
+                onScanClick = TODO()
+            )
+
             Screen.Camera -> CameraScreen(cameraController)
+
+            Screen.Goals -> GoalsScreen(
+                onSettingsClick = { selectedScreen = Screen.Settings }
+            )
+
+            Screen.Settings -> SettingsScreen()
         }
     }
 }
