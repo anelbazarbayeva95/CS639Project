@@ -41,7 +41,7 @@ class CameraController(
     val scanner = BarcodeScanning.getClient(options)
     private var hasScanned = false
 
-    fun setOnBarcodeScannedListener(callback: (String) -> Unit){
+    fun barcodeScannedCallback(callback: (String) -> Unit){
         onBarcodeScanned = callback
     }
 

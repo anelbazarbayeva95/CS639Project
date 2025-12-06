@@ -29,7 +29,7 @@ fun NutritionApp(cameraController: CameraController) {   // still passed from Ma
     var userName by remember { mutableStateOf("") }
     var scannedBarcode by remember { mutableStateOf<String?>(null) }
 
-    cameraController.setOnBarcodeScannedListener { barcode ->
+    cameraController.barcodeScannedCallback { barcode ->
         scannedBarcode = barcode
         selectedScreen = Screen.Home
 
