@@ -1,6 +1,6 @@
 # CS639Project
 
-## Team:
+## Team
 - [Anel Bazarbayeva](https://github.com/anelbazarbayeva95/CS639)
 - [Spencer Maginsky](https://github.com/SpencerMaginsky1/CS639)
 - [Jash Berawala](https://github.com/JashBerawala/CS639)
