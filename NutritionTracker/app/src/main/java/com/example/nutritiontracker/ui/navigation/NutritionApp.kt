@@ -8,11 +8,14 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.nutritiontracker.camera.CameraController
 import com.example.nutritiontracker.camera.CameraScreen
 import com.example.nutritiontracker.data.RDIRequirements
@@ -21,6 +24,13 @@ import com.example.nutritiontracker.ui.home.AddFoodSection
 import com.example.nutritiontracker.ui.home.HomeScreen
 import com.example.nutritiontracker.ui.rdi.RDIResultsScreen
 import com.example.nutritiontracker.ui.settings.SettingsScreen
+import com.example.nutritiontracker.data.fdc.FDCHelper
+import com.example.nutritiontracker.data.fdc.FdcIdDetails
+import com.example.nutritiontracker.data.fdc.NutritionResults
+import com.example.nutritiontracker.data.fdc.NutritionSummary
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
 
 @Composable
 fun NutritionApp(cameraController: CameraController) {   // still passed from MainActivity
@@ -28,6 +38,11 @@ fun NutritionApp(cameraController: CameraController) {   // still passed from Ma
     var rdiRequirements by remember { mutableStateOf<RDIRequirements?>(null) }
     var userName by remember { mutableStateOf("") }
     var scannedBarcode by remember { mutableStateOf<String?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+    val fdcHelper = remember { FDCHelper() }
+    var scannedFoodFound by remember { mutableStateOf<FdcIdDetails?>(null)}
+    var nutritionalFacts by remember {mutableStateOf<NutritionSummary?>(null)}
+    var obtainedErrors by remember { mutableStateOf<String?>(null) }
 
     cameraController.barcodeScannedCallback { barcode ->
         scannedBarcode = barcode
@@ -35,8 +50,52 @@ fun NutritionApp(cameraController: CameraController) {   // still passed from Ma
 
         Log.i("MLKit", "Barcode received in callback: $scannedBarcode")
 
-        //TODO: Call the FoodData Center API here using scannedBarcode
     }
+
+    DisposableEffect(LocalLifecycleOwner.current) {
+
+        val callback: (String) -> Unit = { barcode ->
+            scannedBarcode = barcode
+            selectedScreen = Screen.Home
+            obtainedErrors = null
+
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    val results: NutritionResults = fdcHelper.getNutritionFactsFromBarcodeType(barcode)
+
+                    //Logging is for testing to ensure data is populated correctly
+                    Log.i("API_SUCCESS", "Food found: ${results.details.description}, FDC ID: ${results.details.fdcId}")
+                    Log.i("API_SUCCESS", "Food found: ${results.summary.description}, Calories: ${results.summary.calories}")
+                    Log.i(
+                        "API_SUCCESS",
+                        "Calories: ${results.summary.calories}," +
+                                "Protein: ${results.summary.protein}, " +
+                                "Carbs ${results.summary.totalCarbs}, " +
+                                "Fat: ${results.summary.totalFat}, " +
+                                "Fiber: ${results.summary.fiber}, " +
+                                "VitaminC ${results.summary.vitaminC}, " +
+                                "VitaminD: ${results.summary.vitaminD}, " +
+                                "Calcium: ${results.summary.calcium}, "
+                    )
+
+                    scannedFoodFound = results.details
+                    nutritionalFacts = results.summary
+                } catch (e: Exception) {
+                    obtainedErrors = when (e) {
+                        is NoSuchElementException -> "Food not Found"
+                        is IllegalArgumentException -> "Invalid barcode"
+                        else -> "Network error: ${e.message}"
+                    }
+                    scannedFoodFound = null
+                }
+            }
+        }
+            cameraController.barcodeScannedCallback(callback)
+            onDispose {
+            }
+
+    }
+
 
     Scaffold(
         bottomBar = {
@@ -64,7 +123,9 @@ fun NutritionApp(cameraController: CameraController) {   // still passed from Ma
                 cameraController = cameraController,
                 onScanClick = { selectedScreen = Screen.Camera }
             )
-            
+
+            //TODO: Remove this call and reference to AddFood screen as this is not a screen but
+            // a function on the home screen
             Screen.AddFood -> AddFoodSection(
                 cameraController = TODO(),
                 onScanClick = TODO()
