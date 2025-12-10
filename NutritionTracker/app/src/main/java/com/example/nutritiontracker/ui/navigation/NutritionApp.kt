@@ -53,49 +53,68 @@ fun NutritionApp(cameraController: CameraController) {   // still passed from Ma
 
     }
 
-        val processBarcodeCallback: (String) -> Unit = { barcode ->
-            scannedBarcode = barcode
-            selectedScreen = Screen.Home
-            obtainedErrors = null
-            scannedFoodFound = null
-            nutritionalFacts = null
+    val manualEntryCallback: (NutritionSummary) -> Unit = {summary ->
+        nutritionalFacts = summary
+        scannedFoodFound = null
+        selectedScreen = Screen.Home
 
-            coroutineScope.launch(Dispatchers.IO) {
-                try {
-                    val results: NutritionResults = fdcHelper.getNutritionFactsFromBarcodeType(barcode)
+        Log.i("Manual Entry Success", "Food found: ${summary.description}")
+        Log.i(
+            "Manual Entry Success",
+            "Calories: ${summary.calories}," +
+                    "Protein: ${summary.protein}, " +
+                    "Carbs ${summary.totalCarbs}, " +
+                    "Fat: ${summary.totalFat}, " +
+                    "Fiber: ${summary.fiber}, " +
+                    "VitaminC ${summary.vitaminC}, " +
+                    "VitaminD: ${summary.vitaminD}, " +
+                    "Calcium: ${summary.calcium}, "
+        )
+    }
 
-                    //Logging is for testing to ensure data is populated correctly
-                    Log.i("API_SUCCESS", "Food found: ${results.details.description}, FDC ID: ${results.details.fdcId}")
-                    Log.i("API_SUCCESS", "Food found: ${results.summary.description}, Calories: ${results.summary.calories}")
-                    Log.i(
-                        "API_SUCCESS",
-                        "Calories: ${results.summary.calories}," +
-                                "Protein: ${results.summary.protein}, " +
-                                "Carbs ${results.summary.totalCarbs}, " +
-                                "Fat: ${results.summary.totalFat}, " +
-                                "Fiber: ${results.summary.fiber}, " +
-                                "VitaminC ${results.summary.vitaminC}, " +
-                                "VitaminD: ${results.summary.vitaminD}, " +
-                                "Calcium: ${results.summary.calcium}, "
-                    )
+    val processBarcodeCallback: (String) -> Unit = { barcode ->
+        scannedBarcode = barcode
+        selectedScreen = Screen.Home
+        obtainedErrors = null
+        scannedFoodFound = null
+        nutritionalFacts = null
 
-                    scannedFoodFound = results.details
-                    nutritionalFacts = results.summary
-                } catch (e: Exception) {
-                    obtainedErrors = when (e) {
-                        is NoSuchElementException -> "Food not Found"
-                        is IllegalArgumentException -> "Invalid barcode"
-                        else -> "Network error: ${e.message}"
-                    }
-                    scannedFoodFound = null
+        coroutineScope.launch(Dispatchers.IO) {
+            try {
+                val results: NutritionResults = fdcHelper.getNutritionFactsFromBarcodeType(barcode)
+
+                //Logging is for testing to ensure data is populated correctly
+                Log.i("API_SUCCESS", "Food found: ${results.details.description}, FDC ID: ${results.details.fdcId}")
+                Log.i("API_SUCCESS", "Food found: ${results.summary.description}, Calories: ${results.summary.calories}")
+                Log.i(
+                    "API_SUCCESS",
+                    "Calories: ${results.summary.calories}," +
+                            "Protein: ${results.summary.protein}, " +
+                            "Carbs ${results.summary.totalCarbs}, " +
+                            "Fat: ${results.summary.totalFat}, " +
+                            "Fiber: ${results.summary.fiber}, " +
+                            "VitaminC ${results.summary.vitaminC}, " +
+                            "VitaminD: ${results.summary.vitaminD}, " +
+                            "Calcium: ${results.summary.calcium}, "
+                )
+
+                scannedFoodFound = results.details
+                nutritionalFacts = results.summary
+            } catch (e: Exception) {
+                obtainedErrors = when (e) {
+                    is NoSuchElementException -> "Food not Found"
+                    is IllegalArgumentException -> "Invalid barcode"
+                    else -> "Network error: ${e.message}"
                 }
+                scannedFoodFound = null
             }
         }
-    DisposableEffect(LocalLifecycleOwner.current) {
-            cameraController.barcodeScannedReturnHome(processBarcodeCallback)
-            onDispose {
-            }
+    }
 
+    DisposableEffect(LocalLifecycleOwner.current) {
+        cameraController.barcodeScannedReturnHome(processBarcodeCallback)
+        onDispose {
+        }
     }
 
 
@@ -124,7 +143,8 @@ fun NutritionApp(cameraController: CameraController) {   // still passed from Ma
                 modifier = Modifier,
                 cameraController = cameraController,
                 onScanClick = { selectedScreen = Screen.Camera },
-                onBarcodeEntered = processBarcodeCallback
+                onBarcodeEntered = processBarcodeCallback,
+                onManualEntry = manualEntryCallback
             )
 
             //TODO: Remove this call and reference to AddFood screen as this is not a screen but

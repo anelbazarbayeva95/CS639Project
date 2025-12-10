@@ -44,7 +44,7 @@ import com.example.nutritiontracker.ui.theme.GreenPrimary
 import com.example.nutritiontracker.ui.theme.TextPrimary
 import com.example.nutritiontracker.ui.theme.TextSecondary
 import com.example.nutritiontracker.R
-
+import com.example.nutritiontracker.data.fdc.NutritionSummary
 
 
 @Composable
@@ -53,6 +53,7 @@ fun HomeScreen(
     cameraController: CameraController,
     onScanClick: () -> Unit,
     onBarcodeEntered: (String) -> Unit,
+    onManualEntry: (NutritionSummary) -> Unit,
     onSettingsClick: () -> Unit = {}   // gets callback from NutritionApp
 ) {
     Column(
@@ -73,7 +74,7 @@ fun HomeScreen(
         Spacer(Modifier.height(24.dp))
         AddFoodSection(cameraController, onScanClick)
         Spacer(Modifier.height(24.dp))
-        FoodActionsRow(onBarcodeEntered)
+        FoodActionsRow(onBarcodeEntered, onManualEntry)
         Spacer(Modifier.height(24.dp))
         TodaysLogCard()
         Spacer(Modifier.height(24.dp))
@@ -221,10 +222,20 @@ fun AddFoodSection(cameraController: CameraController, onScanClick: () -> Unit) 
 }
 
 @Composable
-fun FoodActionsRow(onBarcodeEntered: (String) -> Unit) {
+fun FoodActionsRow(onBarcodeEntered: (String) -> Unit, onManualEntry: (NutritionSummary) -> Unit) {
     var showEnterCodeDialog by remember { mutableStateOf(false) }
     var showManualEntryDialog by remember { mutableStateOf(false) }
     var codeInput by remember { mutableStateOf("") }
+
+    var description by remember { mutableStateOf("") }
+    var calories by remember { mutableStateOf("") }
+    var protein by remember { mutableStateOf("") }
+    var totalCarbs by remember { mutableStateOf("") }
+    var totalFat by remember { mutableStateOf("") }
+    var fiber by remember { mutableStateOf("") }
+    var vitaminC by remember { mutableStateOf("") }
+    var vitaminD by remember { mutableStateOf("") }
+    var calcium by remember { mutableStateOf("") }
 
     Row(
         modifier = Modifier
@@ -249,7 +260,6 @@ fun FoodActionsRow(onBarcodeEntered: (String) -> Unit) {
                 .clickable{showManualEntryDialog = true}
         )
     }
-    // TODO: Create another AlertDialog for showManualEntryDialog
     if(showEnterCodeDialog){
         AlertDialog(
             onDismissRequest = { showEnterCodeDialog = false },
@@ -296,6 +306,109 @@ fun FoodActionsRow(onBarcodeEntered: (String) -> Unit) {
                 }
             },
 
+        )
+    }
+    if(showManualEntryDialog){
+        AlertDialog(
+            onDismissRequest = { showManualEntryDialog = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val summary = NutritionSummary(
+                            description = description,
+                            calories = calories.toDoubleOrNull(),
+                            protein = protein.toDoubleOrNull(),
+                            totalCarbs = totalCarbs.toDoubleOrNull(),
+                            totalFat = totalFat.toDoubleOrNull(),
+                            fiber = fiber.toDoubleOrNull(),
+                            vitaminC = vitaminC.toDoubleOrNull(),
+                            vitaminD = vitaminD.toDoubleOrNull(),
+                            calcium = calcium.toDoubleOrNull()
+                        )
+                        onManualEntry(summary)
+
+                        description = ""
+                        calories = ""
+                        protein = ""
+                        totalCarbs = ""
+                        totalFat = ""
+                        fiber = ""
+                        vitaminC = ""
+                        vitaminD = ""
+                        calcium = ""
+
+                        showManualEntryDialog = false
+                    },
+                ){
+                    Text("Submit")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showManualEntryDialog = false
+                    },
+                ){
+                    Text("Cancel")
+                }
+            },
+            title = {
+                Text("Manual Entry")
+            },
+            text = {
+                Column {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Enter the Nutritional Facts Below:")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextField(
+                        value = description,
+                        onValueChange = {description = it},
+                        label = {Text("Food Name")}
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextField(
+                        value = calories,
+                        onValueChange = {calories = it},
+                        label = {Text("Calories")}
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextField(
+                        value = protein,
+                        onValueChange = {protein = it},
+                        label = {Text("Protein")}
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextField(
+                        value = totalCarbs,
+                        onValueChange = {totalCarbs = it},
+                        label = {Text("Carbohydrates")}
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextField(
+                        value = totalFat,
+                        onValueChange = {totalFat = it},
+                        label = {Text("Total Fat")}
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextField(
+                        value = vitaminC,
+                        onValueChange = {vitaminC = it},
+                        label = {Text("VitaminC")}
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextField(
+                        value = vitaminD,
+                        onValueChange = {vitaminD = it},
+                        label = {Text("VitaminD")}
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextField(
+                        value = calcium,
+                        onValueChange = {calcium = it},
+                        label = {Text("Calcium")}
+                    )
+                }
+            },
         )
     }
 }
