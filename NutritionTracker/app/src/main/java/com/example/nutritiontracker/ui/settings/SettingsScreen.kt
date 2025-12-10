@@ -32,6 +32,7 @@ import com.example.nutritiontracker.utils.RDICalculator
 fun SettingsScreen(
     onCustomizeClick: () -> Unit = {},
     onRDICalculate: (com.example.nutritiontracker.data.RDIRequirements, String) -> Unit = { _, _ -> },
+    onBackClick: () -> Unit = {},
     viewModel: SettingsViewModel = viewModel()
 ) {
     val savedSettings by viewModel.settings.observeAsState(SettingsData())
@@ -87,7 +88,9 @@ fun SettingsScreen(
         ) {
             HeaderSection(
                 title = "Settings",
-                showSettings = false
+                showSettings = false,
+                showBackButton = true,
+                onBackClick = onBackClick
             )
 
             if (isEditMode) {

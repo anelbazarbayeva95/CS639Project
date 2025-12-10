@@ -29,7 +29,9 @@ fun RDIResultsScreen(
     ) {
         HeaderSection(
             title = "Your RDI",
-            showSettings = false
+            showSettings = false,
+            showBackButton = true,
+            onBackClick = onBack
         )
 
         Column(

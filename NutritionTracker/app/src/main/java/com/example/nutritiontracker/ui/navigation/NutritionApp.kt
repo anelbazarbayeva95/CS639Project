@@ -165,7 +165,8 @@ fun NutritionApp(cameraController: CameraController) {   // still passed from Ma
                     rdiRequirements = rdi
                     userName = name
                     selectedScreen = Screen.RDIResults
-                }
+                },
+                onBackClick = { selectedScreen = Screen.Home }
             )
 
             Screen.RDIResults -> {

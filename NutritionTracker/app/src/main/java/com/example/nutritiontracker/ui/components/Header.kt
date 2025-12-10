@@ -4,6 +4,7 @@ package com.example.nutritiontracker.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -23,7 +24,9 @@ import java.time.format.DateTimeFormatter
 fun HeaderSection(
     title: String,
     showSettings: Boolean = true,
-    onSettingsClick: () -> Unit = {}
+    showBackButton: Boolean = false,
+    onSettingsClick: () -> Unit = {},
+    onBackClick: () -> Unit = {}
 ) {
     val todayText = remember {
         val formatter = DateTimeFormatter.ofPattern("EEEE, MMMM d")
@@ -61,13 +64,25 @@ fun HeaderSection(
                 )
             }
 
-            if (showSettings) {
-                IconButton(onClick = onSettingsClick) {
-                    Icon(
-                        imageVector = Icons.Filled.Settings,
-                        contentDescription = "Settings",
-                        tint = Color.White
-                    )
+            Row {
+                if (showBackButton) {
+                    IconButton(onClick = onBackClick) {
+                        Icon(
+                            imageVector = Icons.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color.White
+                        )
+                    }
+                }
+
+                if (showSettings) {
+                    IconButton(onClick = onSettingsClick) {
+                        Icon(
+                            imageVector = Icons.Filled.Settings,
+                            contentDescription = "Settings",
+                            tint = Color.White
+                        )
+                    }
                 }
             }
         }
