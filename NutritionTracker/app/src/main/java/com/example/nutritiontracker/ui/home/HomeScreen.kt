@@ -339,7 +339,8 @@ fun FoodActionsRow(onBarcodeEntered: (String) -> Unit, onManualEntry: (Nutrition
                             fiber = fiber.toDoubleOrNull(),
                             vitaminC = vitaminC.toDoubleOrNull(),
                             vitaminD = vitaminD.toDoubleOrNull(),
-                            calcium = calcium.toDoubleOrNull()
+                            calcium = calcium.toDoubleOrNull(),
+                            iron = null
                         )
                         onManualEntry(summary)
 
@@ -347,7 +348,6 @@ fun FoodActionsRow(onBarcodeEntered: (String) -> Unit, onManualEntry: (Nutrition
                         calories = ""
                         protein = ""
                         totalCarbs = ""
-                        totalFat = ""
                         fiber = ""
                         vitaminC = ""
                         vitaminD = ""
@@ -367,7 +367,6 @@ fun FoodActionsRow(onBarcodeEntered: (String) -> Unit, onManualEntry: (Nutrition
                         calories = ""
                         protein = ""
                         totalCarbs = ""
-                        totalFat = ""
                         fiber = ""
                         vitaminC = ""
                         vitaminD = ""
@@ -410,9 +409,9 @@ fun FoodActionsRow(onBarcodeEntered: (String) -> Unit, onManualEntry: (Nutrition
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     TextField(
-                        value = totalFat,
-                        onValueChange = {totalFat = it},
-                        label = {Text("Total Fat")}
+                        value = fiber,
+                        onValueChange = {fiber = it},
+                        label = {Text("Fiber")}
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     TextField(

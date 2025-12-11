@@ -1,3 +1,4 @@
+// ui/goals/GoalsViewModel.kt
 package com.example.nutritiontracker.ui.goals
 
 import android.app.Application
@@ -8,8 +9,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.nutritiontracker.data.RDIRequirements
 import com.example.nutritiontracker.data.SettingsRepository
 import com.example.nutritiontracker.data.goals.GoalsRepository
+import com.example.nutritiontracker.data.local.DailyLogEntity
 import com.example.nutritiontracker.data.local.NutritionDatabase
+import com.example.nutritiontracker.utils.RDICalculator
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /* DATA MODELS FOR GOALS UI */
 
@@ -17,12 +21,15 @@ data class DailyGoalsUi(
     val caloriesCurrent: Int,
     val caloriesTarget: Int,
     val progressToCalorieGoal: Float,
-    val proteinCurrent: Int = 0,
-    val proteinTarget: Double = 0.0,
-    val carbsCurrent: Int = 0,
-    val carbsTarget: Int = 0,
-    val fatCurrent: Int = 0,
-    val fatTarget: Int = 0
+
+    val proteinCurrent: Int,
+    val proteinTarget: Int,
+
+    val carbsCurrent: Int,
+    val carbsTarget: Int,
+
+    val fiberCurrent: Int,
+    val fiberTarget: Int
 )
 
 data class WeeklyDayUi(
@@ -53,14 +60,15 @@ data class GoalsUiState(
 )
 
 /**
- * ViewModel that connects Daily, Weekly, and Monthly goals.
- * - RDI calories come from SettingsRepository + RDICalculator
- *   (same values as Your RDI screen).
- * - Daily logs come from Room via GoalsRepository.
+ * ViewModel that connects Daily, Weekly and Monthly goals.
+ *
+ * Source of truth:
+ *  - Personalized RDI target  -> SettingsRepository + RDICalculator
+ *  - Actual intake per day    -> DailyLogEntity in Room via GoalsRepository
  */
 class GoalsViewModel(application: Application) : AndroidViewModel(application) {
 
-    // Internal model used only for calculations
+    // Internal model used for calculations
     private data class DailyLog(
         val dayIndex: Int,
         val caloriesConsumed: Int,
@@ -70,25 +78,7 @@ class GoalsViewModel(application: Application) : AndroidViewModel(application) {
     private val goalsRepository: GoalsRepository
     private val settingsRepository: SettingsRepository
 
-    // Store current RDI for real-time updates
-    private var currentRdi: RDIRequirements? = null
-
-    private val _uiState = mutableStateOf(
-        GoalsUiState(
-            daily = DailyGoalsUi(
-                caloriesCurrent = 0,
-                caloriesTarget = 0,
-                progressToCalorieGoal = 0f
-            ),
-            weekly = WeeklyGoalsUi(days = emptyList()),
-            monthly = MonthlyGoalsUi(
-                totalDaysTracked = 0,
-                daysMetGoal = 0,
-                successRatePercent = 0,
-                weeks = emptyList()
-            )
-        )
-    )
+    private val _uiState = mutableStateOf(createEmptyState(rdi = null))
     val uiState: State<GoalsUiState> = _uiState
 
     init {
@@ -97,74 +87,143 @@ class GoalsViewModel(application: Application) : AndroidViewModel(application) {
         goalsRepository = GoalsRepository(db.dailyLogDao())
         settingsRepository = SettingsRepository(appContext)
 
+        // Initial load
+        refreshGoals()
+    }
+    /**
+     * Reload goals using the latest Settings (RDI) and DB logs.
+     * Call this when the user updates their profile or RDI.
+     */
+    fun refreshGoals() {
         viewModelScope.launch {
-            // 1) Get RDI requirements using the SAME logic as Your RDI screen
-            val rdi: RDIRequirements = settingsRepository.getCurrentRdiRequirements()
-            currentRdi = rdi
+            // 1) Get personalized RDI for this user (current settings)
+            val rdi: RDIRequirements = loadCurrentRdi()
             val calorieTarget = rdi.calories
 
-            // 2) Get last up-to-31 days of REAL logs from DB
-            val entities = goalsRepository
-                .getLastDailyLogs(maxDays = 31)
-                .sortedBy { it.date }  // date is String in DailyLogEntity
+            // 2) Load last up-to-31 days from DB
+            val entities: List<DailyLogEntity> =
+                goalsRepository.getLastDailyLogs(maxDays = 31)
 
-            val logs: List<DailyLog> = entities.mapIndexed { index, e ->
-                DailyLog(
-                    dayIndex = index,
-                    caloriesConsumed = e.caloriesConsumed,
-                    caloriesTarget = calorieTarget           // always compare to current RDI
-                )
-            }
-
-            _uiState.value = if (logs.isEmpty()) {
-                buildEmptyState(calorieTarget)
+            if (entities.isEmpty()) {
+                // No logs yet: show RDI-based targets but 0 consumed
+                _uiState.value = createEmptyState(rdi)
             } else {
-                buildUiStateFromLogs(logs)
+                // 3) Map DB entities into internal DailyLog model
+                val logs: List<DailyLog> = entities
+                    .sortedBy { it.date } // oldest -> newest
+                    .mapIndexed { index, e ->
+                        DailyLog(
+                            dayIndex         = index,
+                            caloriesConsumed = e.caloriesConsumed,
+                            // Always use CURRENT RDI target (not older stored target)
+                            caloriesTarget   = calorieTarget
+                        )
+                    }
+
+                _uiState.value = buildUiStateFromLogs(
+                    logs = logs,
+                    rdi  = rdi
+                )
             }
         }
     }
 
-    // When there are no logs yet, show RDI as target but 0 as current
-    private fun buildEmptyState(calorieTarget: Int): GoalsUiState {
+    /** Empty state but with the proper calorie target from RDI. */
+    private fun createEmptyState(rdi: RDIRequirements?): GoalsUiState {
+        val calorieTarget = rdi?.calories ?: 0
+        val proteinTarget = rdi?.protein?.roundToInt() ?: 0
+        val carbsTarget   = rdi?.carbohydrates?.roundToInt() ?: 0
+        val fiberTarget   = rdi?.fiber?.roundToInt() ?: 0
+
         val daily = DailyGoalsUi(
-            caloriesCurrent = 0,
-            caloriesTarget = calorieTarget,
-            progressToCalorieGoal = 0f
+            caloriesCurrent       = 0,
+            caloriesTarget        = calorieTarget,
+            progressToCalorieGoal = 0f,
+
+            proteinCurrent = 0,
+            proteinTarget  = proteinTarget,
+
+            carbsCurrent   = 0,
+            carbsTarget    = carbsTarget,
+
+            fiberCurrent   = 0,
+            fiberTarget    = fiberTarget
+        )
+
+        val weekly = WeeklyGoalsUi(days = emptyList())
+
+        val monthly = MonthlyGoalsUi(
+            totalDaysTracked   = 0,
+            daysMetGoal        = 0,
+            successRatePercent = 0,
+            weeks              = emptyList()
         )
 
         return GoalsUiState(
-            daily = daily,
-            weekly = WeeklyGoalsUi(days = emptyList()),
-            monthly = MonthlyGoalsUi(
-                totalDaysTracked = 0,
-                daysMetGoal = 0,
-                successRatePercent = 0,
-                weeks = emptyList()
-            )
+            daily   = daily,
+            weekly  = weekly,
+            monthly = monthly
         )
     }
 
-    /* AGGREGATION LOGIC */
+    /** Load the current RDI based on saved user settings. */
+    private fun loadCurrentRdi(): RDIRequirements {
+        val settings = settingsRepository.loadSettings()
 
-    private fun buildUiStateFromLogs(logs: List<DailyLog>): GoalsUiState {
+        val ageInt = settings.age.toIntOrNull() ?: 25
+        val weightDouble = settings.weight.toDoubleOrNull() ?: 70.0
+        val heightDouble = settings.height.toDoubleOrNull() ?: 170.0
+        val gender = settings.gender
+        val activityLevel = settings.activityLevel
+
+        return RDICalculator.calculateRDI(
+            age = ageInt,
+            gender = gender,
+            weight = weightDouble,
+            height = heightDouble,
+            activityLevel = activityLevel
+        )
+    }
+
+    // ---- Mapping + aggregation logic ----
+
+    private fun buildUiStateFromLogs(
+        logs: List<DailyLog>,
+        rdi: RDIRequirements
+    ): GoalsUiState {
         require(logs.isNotEmpty())
 
         val latest = logs.last()
+
+        // Targets from RDI
+        val proteinTarget = rdi.protein.roundToInt()
+        val carbsTarget   = rdi.carbohydrates.roundToInt()
+        val fiberTarget   = rdi.fiber.roundToInt()
+
+        // For now, macro CURRENT values are 0 – later we’ll wire them
+        // from today’s food log totals.
         val dailyUi = DailyGoalsUi(
-            caloriesCurrent = latest.caloriesConsumed,
-            caloriesTarget = latest.caloriesTarget,
+            caloriesCurrent       = latest.caloriesConsumed,
+            caloriesTarget        = latest.caloriesTarget,
             progressToCalorieGoal =
-                if (latest.caloriesTarget > 0) {
-                    latest.caloriesConsumed.toFloat() / latest.caloriesTarget
-                } else 0f
+                latest.caloriesConsumed.toFloat() / latest.caloriesTarget.toFloat(),
+
+            proteinCurrent = 0,
+            proteinTarget  = proteinTarget,
+
+            carbsCurrent   = 0,
+            carbsTarget    = carbsTarget,
+
+            fiberCurrent   = 0,
+            fiberTarget    = fiberTarget
         )
 
-        val weeklyUi = buildWeeklyUi(logs)
+        val weeklyUi  = buildWeeklyUi(logs)
         val monthlyUi = buildMonthlyUi(logs)
 
         return GoalsUiState(
-            daily = dailyUi,
-            weekly = weeklyUi,
+            daily   = dailyUi,
+            weekly  = weeklyUi,
             monthly = monthlyUi
         )
     }
@@ -175,14 +234,11 @@ class GoalsViewModel(application: Application) : AndroidViewModel(application) {
         val labels = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
         val days = last7.mapIndexed { index, log ->
-            val percent =
-                if (log.caloriesTarget > 0) {
-                    (log.caloriesConsumed.toFloat() / log.caloriesTarget.toFloat()) * 100f
-                } else 0f
-
+            val rawPercent =
+                (log.caloriesConsumed.toFloat() / log.caloriesTarget.toFloat()) * 100f
             WeeklyDayUi(
                 label = labels.getOrNull(index) ?: "D${startIndex + index + 1}",
-                percentOfGoal = percent
+                percentOfGoal = rawPercent
             )
         }
 
@@ -201,9 +257,8 @@ class GoalsViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
 
-        // A day "meets goal" if intake is 90–110% of target
+        // Define “goal met” as being within 90–110% of calorie target.
         fun DailyLog.goalMet(): Boolean {
-            if (caloriesTarget <= 0) return false
             val ratio = caloriesConsumed.toFloat() / caloriesTarget.toFloat()
             return ratio in 0.9f..1.1f
         }
@@ -224,36 +279,6 @@ class GoalsViewModel(application: Application) : AndroidViewModel(application) {
             daysMetGoal = daysMet,
             successRatePercent = successRate,
             weeks = weeks
-        )
-    }
-
-    /**
-     * Update daily goals with current food log from today
-     */
-    fun updateFoodLog(foodLog: List<com.example.nutritiontracker.data.fdc.NutritionSummary>) {
-        val rdi = currentRdi ?: return
-
-        // Calculate totals from food log
-        val totalCalories = foodLog.sumOf { it.calories ?: 0.0 }.toInt()
-        val totalProtein = foodLog.sumOf { it.protein ?: 0.0 }.toInt()
-        val totalCarbs = foodLog.sumOf { it.totalCarbs ?: 0.0 }.toInt()
-        val totalFat = foodLog.sumOf { it.totalFat ?: 0.0 }.toInt()
-
-        // Update daily UI with real-time data
-        _uiState.value = _uiState.value.copy(
-            daily = DailyGoalsUi(
-                caloriesCurrent = totalCalories,
-                caloriesTarget = rdi.calories,
-                progressToCalorieGoal = if (rdi.calories > 0) {
-                    totalCalories.toFloat() / rdi.calories
-                } else 0f,
-                proteinCurrent = totalProtein,
-                proteinTarget = rdi.protein,
-                carbsCurrent = totalCarbs,
-                //carbsTarget = rdi.carbs,
-                fatCurrent = totalFat,
-                //fatTarget = rdi.fat
-            )
         )
     }
 }

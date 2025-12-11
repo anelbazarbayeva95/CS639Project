@@ -1,8 +1,8 @@
-// ui/goals/GoalsScreen.kt
+
 package com.example.nutritiontracker.ui.goals
 
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.foundation.Canvas
+import com.example.nutritiontracker.data.fdc.NutritionSummary
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,15 +30,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nutritiontracker.ui.components.HeaderSection
 import com.example.nutritiontracker.ui.theme.GrayBackground
 import com.example.nutritiontracker.ui.theme.GreenPrimary
 import com.example.nutritiontracker.ui.theme.TextPrimary
 import com.example.nutritiontracker.ui.theme.TextSecondary
+import com.example.nutritiontracker.data.SettingsRepository
 
 private val DividerColor = Color(0xFFE0E3EE)
 
@@ -49,20 +53,28 @@ private enum class GoalsTab(val label: String) {
     Monthly("Monthly Goals")
 }
 
-/*  ROOT SCREEN  */
+/* ROOT SCREEN */
+
 
 @Composable
 fun GoalsScreen(
     modifier: Modifier = Modifier,
     onSettingsClick: () -> Unit = {},
-    viewModel: GoalsViewModel = viewModel(),
-    foodLog: List<com.example.nutritiontracker.data.fdc.NutritionSummary> = emptyList()
+    foodLog: List<NutritionSummary> = emptyList(),
+    viewModel: GoalsViewModel = viewModel()
 ) {
-    // Update ViewModel with current food log
-    viewModel.updateFoodLog(foodLog)
-
     val uiState by viewModel.uiState
+
+    val context = LocalContext.current
+    val settingsRepository = remember { SettingsRepository(context) }
+    val rdi = remember { settingsRepository.getCurrentRdiRequirements() }
+
+    LaunchedEffect(Unit) {
+        viewModel.refreshGoals()
+    }
+
     var selectedTab by remember { mutableStateOf(GoalsTab.Daily) }
+
 
     Column(
         modifier = modifier
@@ -100,8 +112,48 @@ fun GoalsScreen(
                     .padding(bottom = 96.dp)
             ) {
                 when (selectedTab) {
-                    GoalsTab.Daily -> DailyGoalsContent(daily = uiState.daily)
-                    GoalsTab.Weekly -> WeeklyGoalsContent(weekly = uiState.weekly)
+                    GoalsTab.Daily -> {
+                        // 1) Aggregate today's intake from the foodLog list
+                        val totalCalories = foodLog.sumOf { it.calories?.toInt() ?: 0 }
+                        val totalProtein  = foodLog.sumOf { it.protein?.toInt() ?: 0 }
+                        val totalCarbs    = foodLog.sumOf { it.totalCarbs?.toInt() ?: 0 }
+                        val totalFiber    = foodLog.sumOf { it.fiber?.toInt() ?: 0 }
+
+                        // Micronutrients for "Today's Intake vs RDI"
+                        val totalVitaminC = foodLog.sumOf { it.vitaminC?.toInt() ?: 0 }
+                        val totalVitaminD = foodLog.sumOf { it.vitaminD?.toInt() ?: 0 }
+                        val totalCalcium  = foodLog.sumOf { it.calcium?.toInt() ?: 0 }
+
+                        // 2) Take the targets (RDI) from the ViewModel state,
+                        //    but override the "current" values with these sums.
+                        val dailyForUi = uiState.daily.copy(
+                            caloriesCurrent = totalCalories,
+                            proteinCurrent  = totalProtein,
+                            carbsCurrent    = totalCarbs,
+                            fiberCurrent    = totalFiber,
+                            progressToCalorieGoal =
+                                if (uiState.daily.caloriesTarget > 0)
+                                    totalCalories.toFloat() / uiState.daily.caloriesTarget.toFloat()
+                                else 0f
+                        )
+
+                        DailyGoalsContent(daily = dailyForUi)
+
+                        Spacer(Modifier.height(16.dp))
+
+                        DailyRdiIntakeSection(
+                            vitaminCIntake = totalVitaminC,
+                            vitaminCTarget = rdi.vitaminC,
+                            vitaminDIntake = totalVitaminD,
+                            vitaminDTarget = rdi.vitaminD,
+                            calciumIntake = totalCalcium,
+                            calciumTarget = rdi.calcium,
+                            ironIntake = null,
+                            ironTarget = null,
+                        )
+                    }
+
+                    GoalsTab.Weekly  -> WeeklyGoalsContent(weekly = uiState.weekly)
                     GoalsTab.Monthly -> MonthlyGoalsContent(monthly = uiState.monthly)
                 }
 
@@ -136,7 +188,7 @@ private fun GoalsProgressSummary(selectedTab: GoalsTab) {
     )
 }
 
-/*  TAB SWITCHER  */
+/* TAB SWITCHER */
 
 @Composable
 private fun GoalsTabSwitcher(
@@ -183,6 +235,7 @@ private fun GoalsTabSwitcher(
     }
 }
 
+/* COMMON RING DRAWING */
 
 @Composable
 private fun CircularRing(
@@ -193,8 +246,6 @@ private fun CircularRing(
     strokeWidth: Dp = 10.dp
 ) {
     Canvas(modifier = modifier) {
-        // Full 360° circle. 0° is at 3 o'clock, so we start at -90°
-        // to have the ring start at the top.
         val sweepAngleMax = 360f
         val startAngle = -90f
 
@@ -203,7 +254,7 @@ private fun CircularRing(
             cap = StrokeCap.Round
         )
 
-        // Background track = full circle (represents 100%)
+        // Background track = full circle
         drawArc(
             color = backgroundColor,
             startAngle = startAngle,
@@ -212,7 +263,7 @@ private fun CircularRing(
             style = stroke
         )
 
-        // Foreground progress arc = progress % of full circle
+        // Foreground progress arc
         drawArc(
             color = ringColor,
             startAngle = startAngle,
@@ -227,7 +278,6 @@ private fun CircularRing(
 
 @Composable
 fun DailyGoalsContent(daily: DailyGoalsUi) {
-    // Main goals card – now fully driven by real data
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -265,6 +315,7 @@ fun DailyGoalsContent(daily: DailyGoalsUi) {
 
             Spacer(Modifier.height(16.dp))
 
+            // Macro rings (Protein / Carbs / Fiber)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
@@ -288,12 +339,12 @@ fun DailyGoalsContent(daily: DailyGoalsUi) {
                     } else 0f
                 )
                 SmallRingStat(
-                    label = "Fat",
-                    value = "${daily.fatCurrent}/${daily.fatTarget}",
+                    label = "Fiber",
+                    value = "${daily.fiberCurrent}/${daily.fiberTarget}",
                     unit = "g",
                     ringColor = Color(0xFFBA68C8),
-                    progress = if (daily.fatTarget > 0) {
-                        daily.fatCurrent.toFloat() / daily.fatTarget.toFloat()
+                    progress = if (daily.fiberTarget > 0) {
+                        daily.fiberCurrent.toFloat() / daily.fiberTarget.toFloat()
                     } else 0f
                 )
             }
@@ -320,7 +371,7 @@ fun DailyGoalsContent(daily: DailyGoalsUi) {
     }
 }
 
-/*  DAILY HELPERS */
+/* DAILY HELPERS */
 
 @Composable
 private fun BigRingStat(
@@ -336,11 +387,11 @@ private fun BigRingStat(
             contentAlignment = Alignment.Center
         ) {
             CircularRing(
-                progress = progress,                     // e.g. 2f/4f = half ring
-                ringColor = GreenPrimary,               // dark arc
-                backgroundColor = Color(0xFFE0F5EA),    // light track
+                progress = progress,
+                ringColor = GreenPrimary,
+                backgroundColor = Color(0xFFE0F5EA),
                 strokeWidth = 12.dp,
-                modifier = Modifier.fillMaxSize()       // ensure Canvas has size
+                modifier = Modifier.fillMaxSize()
             )
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -384,10 +435,10 @@ private fun SmallRingStat(
         ) {
             CircularRing(
                 progress = progress,
-                ringColor = ringColor,                              // dark arc
-                backgroundColor = ringColor.copy(alpha = 0.18f),    // light track
+                ringColor = ringColor,
+                backgroundColor = ringColor.copy(alpha = 0.18f),
                 strokeWidth = 8.dp,
-                modifier = Modifier.fillMaxSize()                   // ensure Canvas has size
+                modifier = Modifier.fillMaxSize()
             )
 
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -440,7 +491,77 @@ private fun RdiProgressRow(
     }
 }
 
-/*  WEEKLY GOALS  */
+@Composable
+private fun DailyRdiIntakeSection(
+    vitaminCIntake: Int,
+    vitaminCTarget: Int,
+    vitaminDIntake: Int,
+    vitaminDTarget: Int,
+    calciumIntake: Int,
+    calciumTarget: Int,
+    ironIntake: Int?,
+    ironTarget: Int?
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(Color.White),
+        elevation = CardDefaults.cardElevation(6.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 16.dp)
+        ) {
+            Text(
+                text = "Today's Intake vs RDI",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextPrimary
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            RdiProgressRow(
+                label = "Vitamin C",
+                current = "${vitaminCIntake}/${vitaminCTarget} mg",
+                progress = if (vitaminCTarget > 0)
+                    vitaminCIntake.toFloat() / vitaminCTarget.toFloat()
+                else 0f,
+                barColor = Color(0xFFFFA726)
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            RdiProgressRow(
+                label = "Vitamin D",
+                current = "${vitaminDIntake}/${vitaminDTarget} µg",
+                progress = if (vitaminDTarget > 0)
+                    vitaminDIntake.toFloat() / vitaminDTarget.toFloat()
+                else 0f,
+                barColor = Color(0xFFFFD54F)
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            RdiProgressRow(
+                label = "Calcium",
+                current = "${calciumIntake}/${calciumTarget} mg",
+                progress = if (calciumTarget > 0)
+                    calciumIntake.toFloat() / calciumTarget.toFloat()
+                else 0f,
+                barColor = Color(0xFF64B5F6)
+            )
+
+            Spacer(Modifier.height(8.dp))
+            
+        }
+    }
+}
+
+/* WEEKLY GOALS */
+
 @Composable
 fun WeeklyGoalsContent(weekly: WeeklyGoalsUi) {
     Card(
@@ -496,6 +617,7 @@ fun WeeklyGoalsContent(weekly: WeeklyGoalsUi) {
         }
     }
 }
+
 @Composable
 private fun WeeklyPerformanceChart(days: List<WeeklyDayUi>) {
     if (days.isEmpty()) return
@@ -621,7 +743,6 @@ private fun WeeklyLegend() {
 
 @Composable
 private fun WeeklyYAxis() {
-
     val labels = listOf(0, 30, 60, 90, 120)
 
     Column(
@@ -693,7 +814,8 @@ private fun LegendDotRow(color: Color, label: String) {
     }
 }
 
-/*  MONTHLY GOALS  */
+/* MONTHLY GOALS */
+
 @Composable
 fun MonthlyGoalsContent(monthly: MonthlyGoalsUi) {
     Card(
@@ -752,7 +874,6 @@ fun MonthlyGoalsContent(monthly: MonthlyGoalsUi) {
 
             Spacer(Modifier.height(16.dp))
 
-            // Keep your existing legend items
             MonthlyLegendItem(
                 color = Color(0xFF7C4DFF),
                 label = "Perfect (7 days)"
@@ -871,12 +992,10 @@ private fun MonthlyLegendItem(color: Color, label: String) {
     }
 }
 
-
 /* MONTHLY Y-AXIS */
 
 @Composable
 private fun MonthlyYAxis(maxDays: Int) {
-    // Display a clean vertical axis from 0..7
     val labels = (0..maxDays).toList()
 
     Column(
@@ -905,8 +1024,8 @@ private fun MonthlyYAxis(maxDays: Int) {
     }
 }
 
-
 /* MONTHLY BAR CHART */
+
 @Composable
 private fun MonthlyConsistencyChart(weeks: List<MonthlyWeekUi>) {
     if (weeks.isEmpty()) return
