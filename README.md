@@ -9,8 +9,7 @@
 - [Spencer Maginsky](https://github.com/SpencerMaginsky1/CS639)
 - [Jash Berawala](https://github.com/JashBerawala/CS639)
 
-  ## About This App
-
+## About This App
 NutritionTracker helps you build sustainable, healthy habits through simple and accurate food and macro tracking. Log meals in seconds, monitor your calories and key nutrients, and stay aligned with your daily goals — all in one place.
 Whether you want to eat more balanced meals, improve your energy levels, or better understand what fuels your body, NutritionTracker makes mindful eating effortless.
 With smart logging tools, daily summaries, and clear progress insights, you always know how your nutrition supports your goals.
