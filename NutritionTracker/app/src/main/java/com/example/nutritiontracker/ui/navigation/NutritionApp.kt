@@ -156,7 +156,7 @@ fun NutritionApp(cameraController: CameraController) {   // still passed from Ma
                 foodLog = todaysFoodLog
             )
 
-            //TODO: Remove this call and reference to AddFood screen as this is not a screen but
+            //TODO: Remove this call and reference to the AddFood screen as this is not a screen but
             // a function on the home screen
             Screen.AddFood -> AddFoodSection(
                 cameraController = TODO(),

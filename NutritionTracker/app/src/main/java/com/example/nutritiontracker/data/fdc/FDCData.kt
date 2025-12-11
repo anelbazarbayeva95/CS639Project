@@ -37,7 +37,8 @@ data class NutritionSummary(
     val fiber: Double?,
     val vitaminC: Double?,
     val vitaminD: Double?,
-    val calcium: Double?
+    val calcium: Double?,
+    val iron: Double?
 )
 
 data class NutritionResults(

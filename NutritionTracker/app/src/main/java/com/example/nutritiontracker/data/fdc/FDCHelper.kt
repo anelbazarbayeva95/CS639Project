@@ -41,7 +41,7 @@ class FDCHelper {
         val scaledCalcium = scaleServingSize(details, FdcNutrientIDs.CALCIUM.id)
 
 
-        return NutritionSummary (
+        return NutritionSummary(
             description = details.description ?: "Unknown Product",
             calories = scaledCalories,
             protein = scaledProtein,
@@ -50,7 +50,8 @@ class FDCHelper {
             fiber = scaledFiber,
             vitaminC = scaledVitaminC,
             vitaminD = scaledVitaminD,
-            calcium = scaledCalcium
+            calcium = scaledCalcium,
+            iron = TODO()
         )
     }
 
