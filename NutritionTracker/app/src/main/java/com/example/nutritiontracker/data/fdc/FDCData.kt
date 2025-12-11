@@ -55,5 +55,7 @@ enum class FdcNutrientIDs(val id: Int){
 
     VITAMIN_C(1162),
     VITAMIN_D(1114),
-    CALCIUM(1087);
+    CALCIUM(1087),
+
+    IRON(1089);
 }

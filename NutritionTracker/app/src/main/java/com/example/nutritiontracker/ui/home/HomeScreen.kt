@@ -237,6 +237,7 @@ fun FoodActionsRow(onBarcodeEntered: (String) -> Unit, onManualEntry: (Nutrition
     var vitaminC by remember { mutableStateOf("") }
     var vitaminD by remember { mutableStateOf("") }
     var calcium by remember { mutableStateOf("") }
+    var iron by remember { mutableStateOf("") }
 
     Row(
         modifier = Modifier
@@ -340,7 +341,7 @@ fun FoodActionsRow(onBarcodeEntered: (String) -> Unit, onManualEntry: (Nutrition
                             vitaminC = vitaminC.toDoubleOrNull(),
                             vitaminD = vitaminD.toDoubleOrNull(),
                             calcium = calcium.toDoubleOrNull(),
-                            iron = null
+                            iron = iron.toDoubleOrNull(),
                         )
                         onManualEntry(summary)
 

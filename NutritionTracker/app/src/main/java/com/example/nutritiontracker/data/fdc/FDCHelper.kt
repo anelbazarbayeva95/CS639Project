@@ -39,6 +39,7 @@ class FDCHelper {
         val scaledVitaminC = scaleServingSize(details, FdcNutrientIDs.VITAMIN_C.id)
         val scaledVitaminD = scaleServingSize(details, FdcNutrientIDs.VITAMIN_D.id)
         val scaledCalcium = scaleServingSize(details, FdcNutrientIDs.CALCIUM.id)
+        val scaledIron = scaleServingSize(details, FdcNutrientIDs.IRON.id)
 
 
         return NutritionSummary(
@@ -51,7 +52,7 @@ class FDCHelper {
             vitaminC = scaledVitaminC,
             vitaminD = scaledVitaminD,
             calcium = scaledCalcium,
-            iron = TODO()
+            iron = scaledIron
         )
     }
 
