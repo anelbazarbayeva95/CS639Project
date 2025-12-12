@@ -62,6 +62,7 @@ fun HomeScreen(
             .fillMaxSize()
             .background(GrayBackground)
             .verticalScroll(rememberScrollState())
+            .padding(bottom = 80.dp)  // Add padding for bottom navigation bar
     ) {
         HeaderSection(
             title = "Nutrition Tracker",
