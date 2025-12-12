@@ -16,7 +16,7 @@ With smart logging tools, daily summaries, and clear progress insights, you alwa
 **Your nutrition, simplified.**
 
 ## App Build (APK)
-[Download NutritionTracker APK](https://github.com/SpencerMaginsky1/CS639Project/blob/main/NutritionTracker/app/build/outputs/apk/debug/app-debug.apk)
+[Download NutritionTracker APK](https://github.com/SpencerMaginsky1/CS639Project/blob/main/NutritionTracker/app/build/outputs/apk/debug/NutritionTracker.apk)
 
 ## Idea Proposal
 We provided one concept for the app in this proposal.
